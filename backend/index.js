@@ -1,21 +1,39 @@
 const express = require("express");
 const dotenv = require("dotenv");
-// const connectDB = require("./db_connection");
+const cors = require("cors");
 const connectDB = require("./src/db/db_connection");
 const authRoutes = require("./src/routes/authRoutes");
+const doctorRoutes = require("./src/routes/doctorRoutes");
+const patientRoutes = require("./src/routes/patientRoutes");
+const specializationRoutes = require("./src/routes/specializationRoutes");
+const adminRoutes = require("./src/routes/adminRoutes");
+const createSuperAdmin = require("./src/utils/createAdmin");
 
-dotenv.config(); // env load
+
+dotenv.config();
 
 const app = express();
 
-// MongoDB connect
-connectDB();
+connectDB().then(async () => {
+  await createSuperAdmin();
+});
 
-// Middleware
+// ✅ CORS FIX
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
+
 app.use(express.json());
-// routers calling
+
+// Routes
 app.use("/api/auth", authRoutes);
-// Test route
+app.use("/api/doctors", doctorRoutes);
+app.use("/api/patient", patientRoutes);
+app.use("/api/specializations", specializationRoutes);
+app.use("/api/admin", adminRoutes);
+
+
 app.get("/", (req, res) => {
   res.send("Server is running 🚀");
 });

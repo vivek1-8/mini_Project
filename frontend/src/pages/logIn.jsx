@@ -3,9 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Heart, Shield, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-// with jwt auth later
+import { useAuth } from "@/context/AuthContext";
+
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -20,32 +22,49 @@ const Login = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      setError("");
+  e.preventDefault();
 
-      const res = await axios.post("/api/login", formData);
+  try {
+    setLoading(true);
+    setError("");
 
-      const { role } = res.data; // doctor | patient
+    const res = await axios.post(
+      "http://localhost:5000/api/auth/login",
+      formData
+    );
 
-      if (role === "doctor") {
-        navigate("/doctor-dashboard");
-      } else {
-        navigate("/patient-dashboard");
-      }
-    } catch (err) {
-      setError("Invalid email or password");
-    } finally {
-      setLoading(false);
+    const { user, token } = res.data;
+
+    // Save token
+    localStorage.setItem("token", token);
+
+    // Save user in context
+    login(user);
+
+    // 🔥 ROLE BASED REDIRECT
+    if (user.role === "admin") {
+      navigate("/admin");
+    } else if (user.role === "doctor") {
+      navigate("/doctor-dashboard");
+    } else {
+      navigate("/patient-dashboard");
     }
-  };
+
+  } catch (err) {
+    setError(
+      err.response?.data?.message || "Invalid email or password"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="flex min-h-screen">
       {/* LEFT SIDE */}
       <div className="flex w-full flex-col justify-center px-6 py-12 lg:w-1/2 lg:px-16">
         <div className="mx-auto w-full max-w-md">
+
           {/* Logo */}
           <Link to="/" className="mb-8 flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow">
@@ -62,7 +81,7 @@ const Login = () => {
             Sign in to access your dashboard
           </p>
 
-          {/* Error */}
+          {/* Error Message */}
           {error && (
             <p className="mt-4 text-sm text-red-500">{error}</p>
           )}
@@ -137,7 +156,7 @@ const Login = () => {
 
 export default Login;
 
-/* Feature Card */
+/* Feature Component */
 const Feature = ({ icon, title }) => (
   <div className="flex items-center gap-4">
     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20">

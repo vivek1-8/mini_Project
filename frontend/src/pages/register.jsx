@@ -21,23 +21,25 @@ const Register = () => {
   };
 
   const handleRegister = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      setError("");
+  e.preventDefault();
 
-      await axios.post("/api/register", {
-        role: "patient", // 🔐 fixed role
-        ...formData,
-      });
+  try {
+    setLoading(true);
+    setError("");
 
-      navigate("/login");
-    } catch (err) {
-      setError("Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    await axios.post("http://localhost:5000/api/auth/register", {
+      ...formData,
+    });
+
+    navigate("/login");
+  } catch (err) {
+    setError(
+      err.response?.data?.message || "Registration failed. Please try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-subtle py-10">

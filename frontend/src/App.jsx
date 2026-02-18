@@ -14,6 +14,12 @@ import Confirmation from "./pages/Confirmation";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/logIn";
 import Register from "./pages/register";
+import PatientDashboard from "./pages/patientDashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminRoute from "@/components/AdminRoute";
+
+
 
 
 
@@ -59,6 +65,24 @@ const App = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="*" element={<NotFound />} />
+<Route
+  path="/admin"
+  element={
+    <AdminRoute>
+      <AdminDashboard />
+    </AdminRoute>
+  }
+/>
+
+<Route
+  path="/patient-dashboard"
+  element={
+    <ProtectedRoute>
+      <PatientDashboard />
+    </ProtectedRoute>
+  }
+/>
+
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

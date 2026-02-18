@@ -7,15 +7,29 @@ export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
 
-/* -------------------- AXIOS FETCHING EXAMPLE -------------------- */
-export async function fetchExampleData() {
+/* -------------------- AXIOS INSTANCE -------------------- */
+const API = axios.create({
+  baseURL: "http://localhost:5000/api",
+});
+
+/* -------------------- REGISTER API -------------------- */
+export const registerUser = async (userData) => {
   try {
-    const response = await axios.get(
-      "https://jsonplaceholder.typicode.com/posts"
-    );
+    const response = await API.post("/auth/register", userData);
     return response.data;
   } catch (error) {
-    console.error("Axios fetch error:", error);
-    return [];
+    console.error("Register Error:", error.response?.data || error.message);
+    throw error;
   }
-}
+};
+
+/* -------------------- LOGIN API -------------------- */
+export const loginUser = async (userData) => {
+  try {
+    const response = await API.post("/auth/login", userData);
+    return response.data;
+  } catch (error) {
+    console.error("Login Error:", error.response?.data || error.message);
+    throw error;
+  }
+};
