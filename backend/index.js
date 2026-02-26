@@ -8,6 +8,10 @@ const patientRoutes = require("./src/routes/patientRoutes");
 const specializationRoutes = require("./src/routes/specializationRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
 const createSuperAdmin = require("./src/utils/createAdmin");
+const appointmentRoutes = require("./src/routes/appointmentRoutes");
+const paymentRoutes = require("./src/routes/paymentRoutes");
+
+
 
 
 dotenv.config();
@@ -32,6 +36,10 @@ app.use("/api/doctors", doctorRoutes);
 app.use("/api/patient", patientRoutes);
 app.use("/api/specializations", specializationRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/appointments", appointmentRoutes); 
+app.use("/api/payment", paymentRoutes);
+
+
 
 
 app.get("/", (req, res) => {

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import axios from "axios";
+import api from "@/api";
 import { Search, Filter, SlidersHorizontal } from "lucide-react";
 
 import { Navbar } from "@/components/layout/Navbar";
@@ -18,47 +18,52 @@ const DoctorsList = () => {
   const [specialties, setSpecialties] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  /* -------------------- AXIOS FETCH -------------------- */
+  /* ================= REAL API FETCH ================= */
   useEffect(() => {
-    setLoading(true);
+    const fetchDoctors = async () => {
+      try {
+        setLoading(true);
 
-    // 🔥 Demo API (replace with real backend later)
-    axios
-      .get("https://jsonplaceholder.typicode.com/users")
-      .then((res) => {
-        const mappedDoctors = res.data.map((u) => ({
-          id: u.id,
-          name: u.name,
-          specialty: "General Physician",
-          location: u.address.city,
-          rating: 4.6,
-          reviews: 120,
-          experience: 7,
-          fee: 40,
-          image: `https://i.pravatar.cc/300?img=${u.id}`,
-          available: true,
-        }));
+        const res = await api.get("/api/doctors");
 
-        setDoctors(mappedDoctors);
+        const doctorsData = Array.isArray(res.data)
+          ? res.data
+          : res.data?.doctors || [];
 
-        // 🔹 Generate specialties dynamically
-        setSpecialties([
+        setDoctors(doctorsData);
+
+        // Generate specialties dynamically
+        const uniqueSpecialties = [
           "All Specialties",
-          ...new Set(mappedDoctors.map((d) => d.specialty)),
-        ]);
+          ...new Set(
+            doctorsData.map((doc) => doc.specialty).filter(Boolean)
+          ),
+        ];
 
+        setSpecialties(uniqueSpecialties);
+
+      } catch (error) {
+        console.error("Doctors fetch error:", error);
+        setDoctors([]);
+      } finally {
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      }
+    };
+
+    fetchDoctors();
   }, []);
 
-  /* -------------------- FILTER LOGIC -------------------- */
+  /* ================= FILTER LOGIC ================= */
   const filteredDoctors = useMemo(() => {
     return doctors.filter((doctor) => {
       const matchesSearch =
-        doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        doctor.location.toLowerCase().includes(searchQuery.toLowerCase());
+        doctor?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doctor?.specialty
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase()) ||
+        doctor?.location
+          ?.toLowerCase()
+          .includes(searchQuery.toLowerCase());
 
       const matchesSpecialty =
         selectedSpecialty === "All Specialties" ||
@@ -68,7 +73,7 @@ const DoctorsList = () => {
     });
   }, [doctors, searchQuery, selectedSpecialty]);
 
-  /* -------------------- LOADING -------------------- */
+  /* ================= LOADING ================= */
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -122,6 +127,7 @@ const DoctorsList = () => {
         <section className="py-12">
           <div className="container mx-auto px-4">
             <div className="flex flex-col lg:flex-row gap-8">
+
               {/* SIDEBAR */}
               <aside
                 className={cn(
@@ -138,6 +144,7 @@ const DoctorsList = () => {
                   <h4 className="text-sm font-medium mb-3">
                     Specialty
                   </h4>
+
                   <div className="space-y-2">
                     {specialties.map((specialty) => (
                       <button
@@ -171,7 +178,7 @@ const DoctorsList = () => {
                   <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {filteredDoctors.map((doctor, index) => (
                       <div
-                        key={doctor.id}
+                        key={doctor._id}
                         style={{
                           animationDelay: `${index * 0.05}s`,
                         }}
@@ -192,6 +199,7 @@ const DoctorsList = () => {
                   </div>
                 )}
               </div>
+
             </div>
           </div>
         </section>

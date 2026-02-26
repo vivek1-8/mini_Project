@@ -2,39 +2,11 @@ import { Link } from "react-router-dom";
 import { Star, MapPin, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
-import axios from "axios";
-import api from "@/api"; // axios with token interceptor
-import { useAuth } from "@/context/AuthContext";
+
 const DoctorCard = ({ doctor, featured = false }) => {
-  const [doctorData, setDoctorData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  if (!doctor) return null;
 
-  useEffect(() => {
-    if (!doctor?._id) return;
-
-    const fetchDoctor = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(
-          `http://localhost:5000/api/doctors/${doctor._id}`
-        );
-        setDoctorData(response.data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDoctor();
-  }, [doctor?._id]);
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-
-  const data = doctorData || doctor;
+  const data = doctor;
 
   return (
     <div
@@ -45,10 +17,11 @@ const DoctorCard = ({ doctor, featured = false }) => {
           : "shadow-card hover:shadow-card-hover"
       )}
     >
+      {/* Image */}
       <div className="relative h-56 overflow-hidden">
         <img
           src={data?.image || "/placeholder.jpg"}
-          alt={data?.name}
+          alt={data?.name || data?.fullName}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
 
@@ -72,8 +45,12 @@ const DoctorCard = ({ doctor, featured = false }) => {
         </div>
       </div>
 
+      {/* Content */}
       <div className="p-6">
-        <h3 className="text-xl font-semibold mb-2">{data?.name}</h3>
+        {/* 🔥 FIXED NAME */}
+        <h3 className="text-xl font-semibold mb-2">
+          {data?.name || data?.fullName || "Doctor Name"}
+        </h3>
 
         <div className="flex items-center gap-2 text-sm mb-4">
           <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
@@ -83,12 +60,12 @@ const DoctorCard = ({ doctor, featured = false }) => {
 
         <div className="flex items-center gap-2 text-sm mb-2">
           <MapPin className="h-4 w-4" />
-          {data?.location}
+          {data?.location || "Location"}
         </div>
 
         <div className="flex items-center gap-2 text-sm mb-6">
           <Clock className="h-4 w-4" />
-          {data?.experience} years experience
+          {data?.experience || 0} years experience
         </div>
 
         <div className="flex justify-between items-center border-t pt-4">

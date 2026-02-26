@@ -14,8 +14,21 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
     },
 
+    /* 📅 APPOINTMENT DATE */
     date: {
       type: Date,
+      required: true,
+    },
+
+    /* ⏰ APPOINTMENT TIME */
+    time: {
+      type: String,
+      required: true,
+    },
+
+    /* 📝 PATIENT REASON */
+    reason: {
+      type: String,
       required: true,
     },
 

@@ -65,47 +65,45 @@ const BookAppointment = () => {
   }
 
   /* -------------------- AXIOS SUBMIT -------------------- */
-  const onSubmit = async (data) => {
-    try {
-      setIsSubmitting(true);
+ const onSubmit = async (data) => {
+  try {
+    setIsSubmitting(true);
 
-      // 🔥 Axios API call (mock / real)
-      await axios.post("https://jsonplaceholder.typicode.com/posts", {
-        doctor,
+    const token = localStorage.getItem("token");
+
+    await axios.post(
+      "http://localhost:5000/api/appointments/book",
+      {
+        doctorId: doctor._id,
         date,
         time,
-        patient: data,
-      });
-
-      toast({
-        title: "Appointment Booked!",
-        description: "Your appointment has been successfully scheduled.",
-      });
-
-      navigate("/confirmation", {
-        state: {
-          doctor,
-          date,
-          time,
-          patient: data,
+        reason: data.reason,
+        fee: doctor.fee,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      });
-    } catch (error) {
-      toast({
-        title: "Booking Failed",
-        description: "Something went wrong. Please try again.",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      }
+    );
 
-  const formattedDate = new Date(date).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+    toast({
+      title: "Appointment Booked!",
+      description: "Your appointment has been successfully scheduled.",
+    });
+
+    navigate("/patient-dashboard");
+
+  } catch (error) {
+    toast({
+      title: "Booking Failed",
+      description: error.response?.data?.message || "Something went wrong",
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-background">
