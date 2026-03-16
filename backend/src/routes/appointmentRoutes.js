@@ -36,4 +36,21 @@ router.get("/my-appointments", protect, async (req, res) => {
   res.json(appointments);
 });
 
+/* ================= UPDATE APPOINTMENT STATUS ================= */
+router.put("/:id/status", protect, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const appointment = await Appointment.findById(req.params.id);
+    
+    if (!appointment) return res.status(404).json({ message: "Appointment not found" });
+
+    appointment.status = status;
+    await appointment.save();
+
+    res.json({ message: "Status updated successfully", appointment });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;

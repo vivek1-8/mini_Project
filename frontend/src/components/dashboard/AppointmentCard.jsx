@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@/api';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Video, XCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const AppointmentCard = ({
+  appointment: initialAppointment,
   appointmentId,
   viewAs = 'patient',
   onCancel,
   onConfirm,
 }) => {
-  const [appointment, setAppointment] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [appointment, setAppointment] = useState(initialAppointment || null);
+  const [loading, setLoading] = useState(!initialAppointment);
 
   const statusColors = {
     pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    upcoming: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     confirmed: 'bg-primary/10 text-primary border-primary/20',
     completed: 'bg-accent/10 text-accent border-accent/20',
     cancelled: 'bg-destructive/10 text-destructive border-destructive/20',
@@ -24,19 +26,13 @@ const AppointmentCard = ({
     let isMounted = true;
 
     const fetchAppointment = async () => {
+      if (initialAppointment) return;
+      if (!appointmentId) {
+        setLoading(false);
+        return;
+      }
       try {
-        const res = await axios.get(`/api/appointments/${appointmentId}`);
-
-        // expected API shape:
-        // {
-        //   id,
-        //   patientName,
-        //   doctorName,
-        //   doctorSpecialization,
-        //   date,
-        //   time,
-        //   status
-        // }
+        const res = await api.get(`/api/appointments/${appointmentId}`);
 
         if (isMounted) {
           setAppointment(res.data);
@@ -63,10 +59,22 @@ const AppointmentCard = ({
     );
   }
 
+  const handleStatusUpdate = async (newStatus) => {
+    try {
+      const id = appointmentId || appointment.id || appointment._id;
+      const res = await api.put(`/api/appointments/${id}/status`, { status: newStatus });
+      setAppointment({ ...appointment, status: newStatus });
+      if (newStatus === 'confirmed' && onConfirm) onConfirm();
+      if (newStatus === 'cancelled' && onCancel) onCancel();
+    } catch (err) {
+      console.error('Failed to update status', err);
+    }
+  };
+
   if (!appointment) return null;
 
   return (
-    <div className="group rounded-xl border border-border bg-card p-5 shadow-card transition-all duration-300 hover:shadow-hover">
+    <div className="group rounded-3xl border border-border/50 bg-card p-6 shadow-sm transition-all duration-500 hover:shadow-md hover:-translate-y-1">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
@@ -109,30 +117,38 @@ const AppointmentCard = ({
             {appointment.status}
           </span>
 
-          {appointment.status === 'pending' && viewAs === 'doctor' && (
+          {['pending', 'upcoming'].includes(appointment.status) && viewAs === 'doctor' && (
             <div className="flex gap-2">
-              <Button size="sm" variant="soft" onClick={onConfirm}>
+              <Button size="sm" variant="soft" onClick={() => handleStatusUpdate('confirmed')}>
                 <CheckCircle className="h-4 w-4" />
                 Confirm
               </Button>
-              <Button size="sm" variant="ghost" onClick={onCancel}>
+              <Button size="sm" variant="ghost" onClick={() => handleStatusUpdate('cancelled')}>
                 <XCircle className="h-4 w-4" />
               </Button>
             </div>
           )}
 
-          {appointment.status === 'pending' && viewAs === 'patient' && (
-            <Button size="sm" variant="ghost" onClick={onCancel}>
+          {['pending', 'upcoming'].includes(appointment.status) && viewAs === 'patient' && (
+            <Button size="sm" variant="ghost" onClick={() => handleStatusUpdate('cancelled')}>
               <XCircle className="h-4 w-4" />
               Cancel
             </Button>
           )}
 
           {appointment.status === 'confirmed' && (
-            <Button size="sm" variant="soft">
-              <Video className="h-4 w-4" />
-              Join Call
-            </Button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="soft">
+                <Video className="h-4 w-4" />
+                Join Call
+              </Button>
+              {viewAs === 'doctor' && (
+                <Button size="sm" variant="outline" onClick={() => handleStatusUpdate('completed')}>
+                  <CheckCircle className="h-4 w-4" />
+                  Mark Done
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "@/api";
 import { useAuth } from "@/context/AuthContext";
 
 import Header from "@/components/layout/Header";
 import StatCard from "@/components/dashboard/StatCard";
 import AppointmentCard from "@/components/dashboard/AppointmentCard";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import {
   CalendarCheck,
@@ -12,35 +22,89 @@ import {
   Clock,
   DollarSign,
   TrendingUp,
+  Search,
+  CheckCircle,
+  XCircle,
+  Filter
 } from "lucide-react";
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from "recharts";
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
   const doctor = user;
 
+  const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState(null);
   const [todayAppointments, setTodayAppointments] = useState([]);
+  
+  // Table State
+  const [allAppointments, setAllAppointments] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [loading, setLoading] = useState(true);
 
+  const fetchDashboardData = async () => {
+    try {
+      const [statsRes, todayRes] = await Promise.all([
+        api.get("/api/doctors/stats"),
+        api.get("/api/doctors/today-appointments"),
+      ]);
+      setStats(statsRes.data);
+      setTodayAppointments(todayRes.data);
+    } catch (error) {
+      console.error("Dashboard fetch error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllAppointments = async () => {
+    try {
+      let query = "";
+      if (searchTerm) query += `name=${searchTerm}&`;
+      if (filterDate) query += `date=${filterDate}&`;
+      if (filterStatus !== "all") query += `status=${filterStatus}&`;
+      
+      const res = await api.get(`/api/doctors/appointments?${query}`);
+      setAllAppointments(res.data);
+    } catch (error) {
+      console.error("Appointments fetch error:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [statsRes, appointmentsRes] = await Promise.all([
-          axios.get("/api/doctor/stats"),
-          axios.get("/api/doctor/today-appointments"),
-        ]);
-
-        setStats(statsRes.data);
-        setTodayAppointments(appointmentsRes.data);
-      } catch (error) {
-        console.error("Dashboard fetch error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "appointments") {
+      fetchAllAppointments();
+    }
+  }, [activeTab, searchTerm, filterDate, filterStatus]);
+
+  const handleStatusUpdate = async (id, newStatus) => {
+    try {
+      await api.put(`/api/appointments/${id}/status`, { status: newStatus });
+      // Refresh data
+      if (activeTab === "appointments") {
+        fetchAllAppointments();
+      }
+      fetchDashboardData();
+    } catch (err) {
+      console.error("Failed to update status", err);
+    }
+  };
 
   if (loading) {
     return (
@@ -50,148 +114,256 @@ const DoctorDashboard = () => {
     );
   }
 
+  // Prepping Chart Data
+  const weeklyData = [
+    { name: 'Sun', appointments: stats?.chartData?.weekly[0] || 0 },
+    { name: 'Mon', appointments: stats?.chartData?.weekly[1] || 0 },
+    { name: 'Tue', appointments: stats?.chartData?.weekly[2] || 0 },
+    { name: 'Wed', appointments: stats?.chartData?.weekly[3] || 0 },
+    { name: 'Thu', appointments: stats?.chartData?.weekly[4] || 0 },
+    { name: 'Fri', appointments: stats?.chartData?.weekly[5] || 0 },
+    { name: 'Sat', appointments: stats?.chartData?.weekly[6] || 0 },
+  ];
+
+  const monthlyData = [
+    { name: 'Completed', value: stats?.chartData?.monthly?.completed || 0 },
+    { name: 'Pending', value: stats?.chartData?.monthly?.pending || 0 },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">
-            Welcome back, {doctor?.fullName?.split(" ")[0] || "Doctor"}! 👋
+        <div className="mb-8 rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-8 border border-primary/10">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground mb-2">
+            Welcome back, <span className="text-primary">{doctor?.fullName?.split(" ")[0] || "Doctor"}</span> 👋
           </h1>
-          <p className="mt-1 text-muted-foreground">
-            Here's what's happening with your appointments today.
+          <p className="text-lg text-muted-foreground max-w-2xl">
+            Here's a comprehensive overview of your practice, upcoming appointments, and financial statistics.
           </p>
         </div>
 
-        {/* Stats Grid */}
-        {stats && (
-          <div className="mb-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-              title="Total Appointments"
-              value={stats.totalAppointments}
-              icon={CalendarCheck}
-              trend={{ value: 12, isPositive: true }}
-            />
-            <StatCard
-              title="Today's Patients"
-              value={stats.todayPatients}
-              icon={Users}
-            />
-            <StatCard
-              title="Upcoming"
-              value={stats.upcomingAppointments}
-              icon={Clock}
-            />
-            <StatCard
-              title="Monthly Earnings"
-              value={`$${stats.monthlyEarnings.toLocaleString()}`}
-              icon={DollarSign}
-              trend={{ value: 8, isPositive: true }}
-            />
+        {/* Tabs */}
+        <div className="mb-8 inline-flex h-12 items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground shadow-sm">
+          {["overview", "appointments"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg px-6 py-2.5 text-sm font-medium transition-all ${
+                activeTab === tab
+                  ? "bg-background text-foreground shadow-sm scale-100"
+                  : "hover:bg-muted-foreground/10 scale-95 hover:scale-100 text-muted-foreground"
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* ================= OVERVIEW TAB ================= */}
+        {activeTab === "overview" && stats && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Stats Grid */}
+            <div className="mb-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Bookings"
+                value={stats.totalAppointments}
+                icon={Users}
+              />
+              <StatCard
+                title="Weekly Appointments"
+                value={stats.weeklyPatients || 0}
+                icon={CalendarCheck}
+              />
+              <StatCard
+                title="Monthly Appointments"
+                value={stats.monthlyPatients || 0}
+                icon={CalendarCheck}
+              />
+              <StatCard
+                title="Upcoming / Pending"
+                value={stats.upcomingAppointments || 0}
+                icon={Clock}
+                className="bg-primary/5 border-primary/20"
+              />
+            </div>
+
+            <div className="grid gap-8 lg:grid-cols-3">
+              {/* Daily Appointments Column */}
+              <div className="lg:col-span-1 space-y-6">
+                <div className="rounded-3xl border border-border/50 bg-card p-6 shadow-sm">
+                  <div className="mb-6 flex items-center justify-between">
+                    <h2 className="text-xl font-bold tracking-tight">
+                      Today's Schedule
+                    </h2>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      {todayAppointments.length} Today
+                    </span>
+                  </div>
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                    {todayAppointments.length > 0 ? (
+                      todayAppointments.map((appointment) => (
+                        <AppointmentCard
+                          key={appointment.id}
+                          appointment={appointment}
+                          viewAs="doctor"
+                          onCancel={() => handleStatusUpdate(appointment.id, 'cancelled')}
+                          onConfirm={() => handleStatusUpdate(appointment.id, 'confirmed')}
+                        />
+                      ))
+                    ) : (
+                      <div className="text-center py-12 bg-muted/20 rounded-2xl border border-dashed text-muted-foreground">
+                         <p>No appointments scheduled for today.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts Column */}
+              <div className="lg:col-span-2 space-y-6">
+                 {/* Weekly Recharts */}
+                 <div className="rounded-3xl border border-border/50 bg-card p-6 shadow-sm">
+                    <h3 className="font-semibold text-lg mb-6">Weekly Appointments Flow</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={weeklyData}>
+                           <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                           <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                           <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                           <Bar dataKey="appointments" fill="var(--color-primary, #2563eb)" radius={[4, 4, 0, 0]} />
+                         </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                 </div>
+
+                 {/* Monthly Recharts */}
+                 <div className="rounded-3xl border border-border/50 bg-card p-6 shadow-sm">
+                    <h3 className="font-semibold text-lg mb-6">Monthly Completion Trend</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                         <BarChart data={monthlyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                           <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                           <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                           <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                           <Bar dataKey="value" fill="var(--color-primary, #3b82f6)" radius={[4, 4, 0, 0]} barSize={60} />
+                         </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                 </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Main Content Grid */}
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Today's Appointments */}
-          <div className="lg:col-span-2">
-            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-foreground">
-                  Today's Appointments
-                </h2>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-                  {todayAppointments.length} scheduled
-                </span>
-              </div>
-
-              <div className="space-y-4">
-                {todayAppointments.map((appointment) => (
-                  <AppointmentCard
-                    key={appointment.id}
-                    appointment={appointment}
-                    viewAs="doctor"
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Profile Card */}
-            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-              <div className="flex items-center gap-4">
-                <img
-                  src={
-                    doctor?.profileImage ||
-                    "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100&h=100&fit=crop"
-                  }
-                  alt={doctor?.fullName}
-                  className="h-16 w-16 rounded-xl object-cover"
+        {/* ================= APPOINTMENTS TAB ================= */}
+        {activeTab === "appointments" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+             
+            {/* Filters Bar */}
+            <div className="mb-8 flex flex-col sm:flex-row gap-4 bg-muted/50 p-4 rounded-2xl">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-10 h-10 border-0 bg-background"
+                  placeholder="Search by patient name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <div>
-                  <h3 className="font-semibold text-foreground">
-                    {doctor?.fullName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {doctor?.specialization}
-                  </p>
-                  <p className="text-sm text-primary">
-                    {doctor?.clinicName}
-                  </p>
-                </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">
-                    {doctor?.rating || 4.9}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Rating</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">
-                    {doctor?.totalPatients || "2,500"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Patients</p>
-                </div>
+              <div className="flex gap-4">
+                <input 
+                  type="date"
+                  className="flex h-10 w-full rounded-md bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                />
+
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-[180px] h-10 bg-background border-0 focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                    <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="upcoming">Upcoming</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Revenue Chart */}
-            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">
-                  Weekly Revenue
-                </h3>
-                <TrendingUp className="h-5 w-5 text-accent" />
-              </div>
-
-              <div className="flex h-32 items-end justify-between gap-2">
-                {[40, 65, 50, 80, 60, 90, 75].map((height, i) => (
-                  <div
-                    key={i}
-                    className="w-full rounded-t-md gradient-primary"
-                    style={{ height: `${height}%` }}
-                  />
-                ))}
-              </div>
-
-              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-                <span>Sun</span>
-              </div>
+            {/* Data Table */}
+            <div className="rounded-3xl border border-border/50 bg-card overflow-hidden shadow-sm">
+               <div className="overflow-x-auto">
+                 <table className="w-full text-sm text-left">
+                   <thead className="bg-muted/50 text-muted-foreground font-medium border-b border-border/50">
+                     <tr>
+                       <th className="px-6 py-4">Patient Name</th>
+                       <th className="px-6 py-4">Contact</th>
+                       <th className="px-6 py-4">Date & Time</th>
+                       <th className="px-6 py-4">Status</th>
+                       <th className="px-6 py-4 text-right">Actions</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-border/50">
+                     {allAppointments.length > 0 ? (
+                        allAppointments.map((app) => (
+                           <tr key={app.id} className="hover:bg-muted/20 transition-colors">
+                              <td className="px-6 py-4 font-medium text-foreground">{app.patientName}</td>
+                              <td className="px-6 py-4">
+                                 <div>{app.patientEmail}</div>
+                                 <div className="text-muted-foreground text-xs">{app.patientPhone || "N/A"}</div>
+                              </td>
+                              <td className="px-6 py-4">
+                                 <div>{app.date}</div>
+                                 <div className="text-muted-foreground text-xs">{app.time}</div>
+                              </td>
+                              <td className="px-6 py-4">
+                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                                    ${app.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                                      app.status === 'cancelled' ? 'bg-red-100 text-red-800' : 
+                                      'bg-yellow-100 text-yellow-800'}`}>
+                                    {app.status}
+                                 </span>
+                              </td>
+                              <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                                 {['upcoming', 'pending'].includes(app.status) && (
+                                    <>
+                                       <Button size="sm" variant="outline" className="h-8 rounded-lg" onClick={() => handleStatusUpdate(app.id, 'completed')}>
+                                          <CheckCircle className="mr-1 h-3 w-3" /> Complete
+                                       </Button>
+                                       <Button size="sm" variant="ghost" className="h-8 rounded-lg text-destructive hover:bg-destructive/10" onClick={() => handleStatusUpdate(app.id, 'cancelled')}>
+                                          <XCircle className="h-4 w-4" /> Reject
+                                       </Button>
+                                    </>
+                                 )}
+                                 {app.status === 'completed' && (
+                                     <span className="text-muted-foreground italic text-xs">No actions</span>
+                                 )}
+                              </td>
+                           </tr>
+                        ))
+                     ) : (
+                        <tr>
+                           <td colSpan="5" className="px-6 py-12 text-center text-muted-foreground">
+                              No appointments found matching your filters.
+                           </td>
+                        </tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
             </div>
+
           </div>
-        </div>
+        )}
+
       </main>
     </div>
   );

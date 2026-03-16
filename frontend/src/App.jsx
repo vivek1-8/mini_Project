@@ -18,6 +18,7 @@ import PatientDashboard from "./pages/patientDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRoute from "@/components/AdminRoute";
+import DoctorDashboard from "./pages/doctorDashboard";
 
 
 
@@ -83,6 +84,12 @@ const App = () => {
   }
 />
 
+<Route
+  path="/doctor-dashboard"
+  element={
+      <DoctorDashboard />
+  }
+/>
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

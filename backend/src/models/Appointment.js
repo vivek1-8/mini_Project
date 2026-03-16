@@ -52,8 +52,16 @@ const appointmentSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ["cash", "upi", "card"],
+      enum: ["cash", "upi", "card", "razorpay"],
       default: "cash",
+    },
+
+    razorpayOrderId: {
+      type: String,
+    },
+
+    razorpayPaymentId: {
+      type: String,
     },
   },
   { timestamps: true }

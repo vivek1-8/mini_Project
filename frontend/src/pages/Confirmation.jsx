@@ -52,25 +52,12 @@ const Confirmation = () => {
 
   const confirmationNumber = `MC${Date.now().toString().slice(-8)}`;
 
-  /* -------------------- AXIOS FETCH (EXAMPLE) -------------------- */
+  /* -------------------- DUMMY LOAD -------------------- */
   useEffect(() => {
     setLoading(true);
-
-    // 🔥 Example: send confirmation data to server
-    axios
-      .post("https://jsonplaceholder.typicode.com/posts", {
-        confirmationNumber,
-        doctor,
-        date,
-        time,
-        patient,
-      })
-      .then(() => {
+    setTimeout(() => {
         setLoading(false);
-      })
-      .catch(() => {
-        setLoading(false);
-      });
+    }, 800);
   }, []);
 
   return (
