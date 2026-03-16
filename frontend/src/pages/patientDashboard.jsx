@@ -99,6 +99,10 @@ const PatientDashboard = () => {
     return matchesSearch && matchesSpecialization;
   });
 
+  const upcomingAppointments = appointments.filter(a => a.status === "upcoming");
+  const bookedDoctorIds = new Set(appointments.map(a => typeof a.doctor === "object" ? a.doctor?._id : a.doctor).filter(Boolean));
+  const bookedDoctors = doctors.filter(d => bookedDoctorIds.has(d._id));
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -112,54 +116,117 @@ const PatientDashboard = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-8">
-        {/* Welcome */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">
-            Hello, {user?.name?.split(" ")[0] || "User"} 👋
+        {/* Welcome Banner */}
+        <div className="mb-8 rounded-3xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-8 border border-primary/10">
+          <h1 className="text-4xl font-bold tracking-tight text-foreground mb-2">
+            Hello, <span className="text-primary">{user?.name?.split(" ")[0] || "User"}</span> 👋
           </h1>
-          <p className="text-muted-foreground">
-            Manage your appointments and find doctors easily.
+          <p className="text-lg text-muted-foreground max-w-2xl">
+            Welcome to your personal health hub. Manage your upcoming appointments, consult with top specialists, and track your health journey all in one place.
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-2">
+        <div className="mb-8 inline-flex h-12 items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground shadow-sm">
           {["overview", "doctors", "appointments"].map((tab) => (
-            <Button
+            <button
               key={tab}
-              variant={activeTab === tab ? "default" : "ghost"}
               onClick={() => setActiveTab(tab)}
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-lg px-6 py-2.5 text-sm font-medium transition-all ${
+                activeTab === tab
+                  ? "bg-background text-foreground shadow-sm scale-100"
+                  : "hover:bg-muted-foreground/10 scale-95 hover:scale-100 text-muted-foreground"
+              }`}
             >
-              {tab.toUpperCase()}
-            </Button>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
           ))}
         </div>
 
         {/* ================= OVERVIEW ================= */}
         {activeTab === "overview" && stats && (
-          <div className="grid gap-6 sm:grid-cols-3">
-            <StatCard
-              title="Upcoming Appointments"
-              value={stats?.upcomingAppointments || 0}
-              icon={Clock}
-            />
-            <StatCard
-              title="Completed Visits"
-              value={stats?.completedAppointments || 0}
-              icon={CalendarCheck}
-            />
-            <StatCard
-              title="Favorite Doctors"
-              value={stats?.favoritesDoctors || 0}
-              icon={Heart}
-            />
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="grid gap-6 sm:grid-cols-3">
+              <StatCard
+                title="Upcoming Appointments"
+                value={stats?.upcomingAppointments || 0}
+                icon={Clock}
+              />
+              <StatCard
+                title="Completed Visits"
+                value={stats?.completedAppointments || 0}
+                icon={CalendarCheck}
+              />
+              <StatCard
+                title="Favorite Doctors"
+                value={stats?.favoritesDoctors || bookedDoctors.length}
+                icon={Heart}
+              />
+            </div>
+
+            {/* UPCOMING APPOINTMENTS */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold tracking-tight">Upcoming Appointments</h2>
+                <Button variant="ghost" onClick={() => setActiveTab("appointments")}>
+                  View All
+                </Button>
+              </div>
+              <div className="space-y-4">
+                {upcomingAppointments.length > 0 ? (
+                  upcomingAppointments.slice(0, 2).map((appointment) => (
+                    <AppointmentCard
+                      key={appointment._id}
+                      appointment={appointment}
+                      viewAs="patient"
+                    />
+                  ))
+                ) : (
+                  <div className="text-center py-10 bg-card rounded-3xl border border-dashed border-border/50 shadow-sm">
+                    <p className="text-muted-foreground">No upcoming appointments.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* MY DOCTORS */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold tracking-tight">My Doctors</h2>
+                <Button variant="ghost" onClick={() => setActiveTab("doctors")}>
+                  Find More
+                </Button>
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {bookedDoctors.length > 0 ? (
+                  bookedDoctors.slice(0, 3).map((doctor) => (
+                    <DoctorCard key={doctor._id} doctor={doctor} />
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-10 bg-card rounded-3xl border border-dashed border-border/50 shadow-sm">
+                    <p className="text-muted-foreground">You haven't booked any doctors yet.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions / Getting Started */}
+            <div className="rounded-3xl bg-card border border-border/50 p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between shadow-sm gap-6">
+               <div>
+                  <h3 className="text-2xl font-bold tracking-tight mb-2">Ready to book your next visit?</h3>
+                  <p className="text-muted-foreground text-lg">Browse our list of expert specialists and schedule an appointment instantly.</p>
+               </div>
+               <Button size="lg" onClick={() => setActiveTab("doctors")} className="rounded-xl px-8 shadow-md">
+                  Find a Doctor
+               </Button>
+            </div>
           </div>
         )}
 
         {/* ================= DOCTORS ================= */}
         {activeTab === "doctors" && (
-          <>
-            <div className="mb-6 flex gap-4">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="mb-8 flex flex-col sm:flex-row gap-4 bg-muted/50 p-4 rounded-2xl">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
                 <Input
@@ -196,16 +263,18 @@ const PatientDashboard = () => {
             </div>
 
             {filteredDoctors.length === 0 && (
-              <p className="text-center py-10 text-muted-foreground">
-                No doctors found.
-              </p>
+              <div className="text-center py-20 bg-muted/30 rounded-3xl border border-dashed">
+                <Search className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold">No doctors found</h3>
+                <p className="text-muted-foreground mt-1">Try adjusting your search or filters.</p>
+              </div>
             )}
-          </>
+          </div>
         )}
 
         {/* ================= APPOINTMENTS ================= */}
         {activeTab === "appointments" && (
-          <div className="space-y-4">
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {appointments.length > 0 ? (
               appointments.map((appointment) => (
                 <AppointmentCard
@@ -215,9 +284,14 @@ const PatientDashboard = () => {
                 />
               ))
             ) : (
-              <p className="text-center text-muted-foreground">
-                No appointments found.
-              </p>
+              <div className="text-center py-20 bg-muted/30 rounded-3xl border border-dashed">
+                <CalendarCheck className="h-10 w-10 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-semibold">No appointments found</h3>
+                <p className="text-muted-foreground mt-1 mb-6">You don't have any appointments scheduled yet.</p>
+                <Button onClick={() => setActiveTab("doctors")} variant="outline" className="rounded-xl">
+                  Book an Appointment
+                </Button>
+              </div>
             )}
           </div>
         )}

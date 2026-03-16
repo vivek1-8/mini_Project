@@ -64,45 +64,109 @@ const BookAppointment = () => {
     );
   }
 
+  /* -------------------- DYNAMIC RAZORPAY -------------------- */
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   /* -------------------- AXIOS SUBMIT -------------------- */
- const onSubmit = async (data) => {
-  try {
-    setIsSubmitting(true);
+  const onSubmit = async (data) => {
+    try {
+      setIsSubmitting(true);
+      const token = localStorage.getItem("token");
 
-    const token = localStorage.getItem("token");
-
-    await axios.post(
-      "http://localhost:5000/api/appointments/book",
-      {
-        doctorId: doctor._id,
-        date,
-        time,
-        reason: data.reason,
-        fee: doctor.fee,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const resScript = await loadRazorpay();
+      if (!resScript) {
+        toast({ title: "Error", description: "Razorpay SDK failed to load. Are you online?" });
+        setIsSubmitting(false);
+        return;
       }
-    );
 
-    toast({
-      title: "Appointment Booked!",
-      description: "Your appointment has been successfully scheduled.",
-    });
+      const orderRes = await axios.post(
+        "http://localhost:5000/api/payment/create-order",
+        { amount: doctor.fee },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    navigate("/patient-dashboard");
+      const { id: order_id, currency, amount } = orderRes.data;
 
-  } catch (error) {
-    toast({
-      title: "Booking Failed",
-      description: error.response?.data?.message || "Something went wrong",
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY || "rzp_test_CbnfJtVumEy6z5",
+        amount: amount.toString(),
+        currency: currency,
+        name: "Clinic Management",
+        description: `Booking with Dr. ${doctor.name || doctor.fullName}`,
+        order_id: order_id,
+        handler: async function (response) {
+          try {
+            await axios.post(
+              "http://localhost:5000/api/payment/verify-payment",
+              {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                doctorId: doctor._id,
+                date,
+                time,
+                reason: data.reason,
+                amount: doctor.fee,
+              },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            toast({ title: "Booking Successful", description: "Payment verified and appointment booked!" });
+            navigate("/confirmation", {
+              state: {
+                doctor,
+                date,
+                time,
+                patient: {
+                  firstName: data.firstName,
+                  lastName: data.lastName,
+                  email: data.email,
+                  phone: data.phone,
+                }
+              }
+            });
+          } catch (err) {
+             console.error("Verification error:", err);
+             toast({ title: "Verification Failed", description: err.response?.data?.message || "Payment verified but booking failed" });
+          }
+        },
+        prefill: {
+          name: `${data.firstName} ${data.lastName}`,
+          email: data.email,
+          contact: data.phone,
+        },
+        theme: {
+          color: "#2563EB",
+        },
+      };
+
+      const paymentObject = new window.Razorpay(options);
+      
+      paymentObject.on('payment.failed', function (response){
+        toast({ title: "Payment Failed", description: response.error.description });
+      });
+
+      paymentObject.open();
+
+    } catch (error) {
+      console.error("Order error:", error);
+      toast({
+        title: "Booking Failed",
+        description: error.response?.data?.message || "Something went wrong",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
 
   return (

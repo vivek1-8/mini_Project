@@ -1,6 +1,7 @@
 const razorpay = require("../config/razorpay");
 const crypto = require("crypto");
 const Appointment = require("../models/Appointment");
+const sendEmail = require("../utils/email");
 
 /* ===========================================
    🟢 CREATE RAZORPAY ORDER
@@ -70,11 +71,42 @@ exports.verifyPayment = async (req, res) => {
       patient: req.user._id,
       doctor: doctorId,
       date: new Date(date), // FIXED
+      time: time,
+      reason: req.body.reason || "General Checkup",
       paymentAmount: amount,
       paymentStatus: "paid",
       paymentMethod: "razorpay",
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
       status: "upcoming",
     });
+
+    try {
+      const populatedAppointment = await Appointment.findById(appointment._id)
+        .populate("doctor", "fullName specialization location")
+        .populate("patient", "name email");
+
+      const { sendAppointmentConfirmationEmail } = require("../utils/email");
+      
+      const appointmentDetails = {
+         patientName: populatedAppointment.patient.name,
+         doctorName: populatedAppointment.doctor.fullName,
+         specialization: populatedAppointment.doctor.specialization,
+         appointmentDate: new Date(date).toDateString(),
+         appointmentTime: time,
+         appointmentId: populatedAppointment._id,
+         location: populatedAppointment.doctor.location || "Main Clinic Facility",
+         paymentAmount: amount
+      };
+
+      await sendAppointmentConfirmationEmail(
+         populatedAppointment.patient.email, 
+         appointmentDetails
+      );
+
+    } catch (emailError) {
+      console.error("Failed to send beautiful confirmation email:", emailError);
+    }
 
     res.status(200).json({
       message: "Payment verified & appointment booked",

@@ -41,7 +41,7 @@ const StatCard = ({ title, icon: Icon, apiUrl, className }) => {
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-xl border border-border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-hover",
+        "relative overflow-hidden rounded-3xl border border-border/50 bg-card p-6 shadow-sm transition-all duration-500 hover:shadow-md hover:-translate-y-1",
         className
       )}
     >
